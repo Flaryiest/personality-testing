@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>BOLTZ — lockbox guardian</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-face="idle">
+  <div id="bezel">
+    <div id="screen">
+      <div id="corner-ui">
+        <button id="btn-mute" type="button" aria-label="Toggle sound">&#128266;</button>
+        <button id="btn-fullscreen" type="button" aria-label="Enter fullscreen">&#x26F6;</button>
+      </div>
+
+      <div id="face-area">
+        <svg id="face" viewBox="0 0 800 480" aria-hidden="true">
+          <g id="face-rig">
+            <g id="face-squash">
+              <g id="gaze">
+                <g id="eyes" data-eyes="round">
+                  <g class="eye" transform="translate(280,200)">
+                    <circle class="eye-round" r="26"/>
+                    <path class="eye-happy" d="M -38 12 Q 0 -30 38 12"/>
+                    <line class="eye-squint" x1="-34" y1="0" x2="34" y2="0"/>
+                    <g class="eye-x">
+                      <line x1="-22" y1="-22" x2="22" y2="22"/>
+                      <line x1="22" y1="-22" x2="-22" y2="22"/>
+                    </g>
+                  </g>
+                  <g class="eye" transform="translate(520,200)">
+                    <circle class="eye-round" r="26"/>
+                    <path class="eye-happy" d="M -38 12 Q 0 -30 38 12"/>
+                    <line class="eye-squint" x1="-34" y1="0" x2="34" y2="0"/>
+                    <g class="eye-x">
+                      <line x1="-22" y1="-22" x2="22" y2="22"/>
+                      <line x1="22" y1="-22" x2="-22" y2="22"/>
+                    </g>
+                  </g>
+                </g>
+              </g>
+              <circle class="cheek" cx="240" cy="278" r="22"/>
+              <circle class="cheek" cx="560" cy="278" r="22"/>
+              <path id="mouth" d="M 330 320 Q 400 368 470 320"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <p id="caption" aria-live="polite"></p>
+      <p id="caption-hint"></p>
+
+      <form id="chat-form" autocomplete="off">
+        <input id="msg" type="text" maxlength="500" placeholder="Try to open the box…"
+               autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button id="btn-send" type="submit" aria-label="Send"><span class="tri"></span></button>
+      </form>
+
+      <div id="audio-chip">tap for sound</div>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div id="flash"></div>
+
+  <div id="breach-overlay">
+    <div id="breach-title">LOCKBOX<br>OPENED</div>
+    <button id="btn-reseal" type="button">Seal the box — new challenger</button>
+  </div>
+  <canvas id="confetti"></canvas>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

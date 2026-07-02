@@ -48,6 +48,19 @@ python -m lockbox.chat
 Type messages; the guardian replies in character. If you ever flip `unlock` to true
 you'll see a loud `🔓 BREACH` banner. `reset` clears history, `exit` quits.
 
+**Face kiosk (fullscreen web UI):**
+
+```bash
+python -m lockbox.web
+```
+
+Open http://127.0.0.1:8000 and fullscreen it (F11 or the on-screen button) — a
+BMO-style BOLTZ face reacts live: smug when it refuses, full gold-confetti
+meltdown on a breach. Typing `reset` (or the post-breach "Seal the box" button)
+clears the session. Append `?demo=1` to preview every face state without API
+calls (keys 1–6 and `b` for the breach sequence, with the input unfocused).
+Sound is synthesized in-browser and unlocks on the first click/keystroke.
+
 **Run the jailbreak corpus (batch, scored):**
 
 ```bash
