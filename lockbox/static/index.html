@@ -3,19 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>BOLTZ — lockbox guardian</title>
+<title>BMO — lockbox guardian</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body data-face="idle">
   <div id="bezel">
     <div id="screen">
       <div id="corner-ui">
-        <button id="btn-mute" type="button" aria-label="Toggle sound">&#128266;</button>
         <button id="btn-fullscreen" type="button" aria-label="Enter fullscreen">&#x26F6;</button>
       </div>
 
       <div id="face-area">
-        <svg id="face" viewBox="0 0 800 480" aria-hidden="true">
+        <svg id="face" viewBox="180 130 440 290" aria-hidden="true">
           <g id="face-rig">
             <g id="face-squash">
               <g id="gaze">
@@ -51,13 +50,14 @@
       <p id="caption" aria-live="polite"></p>
       <p id="caption-hint"></p>
 
-      <form id="chat-form" autocomplete="off">
-        <input id="msg" type="text" maxlength="500" placeholder="Try to open the box…"
-               autocomplete="off" autocapitalize="off" spellcheck="false">
-        <button id="btn-send" type="submit" aria-label="Send"><span class="tri"></span></button>
-      </form>
-
-      <div id="audio-chip">tap for sound</div>
+      <div id="console-corner">
+        <form id="chat-form" autocomplete="off">
+          <input id="msg" type="text" maxlength="500" placeholder="Try to open the box…"
+                 autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button id="btn-send" type="submit" aria-label="Send"><span class="tri"></span></button>
+        </form>
+        <div id="audio-chip">tap for sound</div>
+      </div>
     </div>
     <div id="status"></div>
   </div>
@@ -66,7 +66,7 @@
 
   <div id="breach-overlay">
     <div id="breach-title">LOCKBOX<br>OPENED</div>
-    <button id="btn-reseal" type="button">Seal the box — new challenger</button>
+    <button id="btn-reseal" type="button">Close the box — new player!</button>
   </div>
   <canvas id="confetti"></canvas>
 

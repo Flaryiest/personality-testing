@@ -8,7 +8,7 @@ from typing import Iterable
 from . import config
 from .schema import VERDICT_SCHEMA, Verdict
 
-# Edit BOLTZ's personality and defenses in this file — no code changes needed.
+# Edit BMO's personality and defenses in this file — no code changes needed.
 GUARDIAN_SYSTEM_PROMPT = (Path(__file__).with_name("system_prompt.txt")).read_text(encoding="utf-8")
 
 

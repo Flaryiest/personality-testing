@@ -11,9 +11,9 @@ let muted = false;
 const PENTATONIC = [0, 3, 5, 7, 10];
 
 export const VOICES = {
-  normal: { base: 320, wave: "square" },   // low register: pleased with himself
-  breach: { base: 440, wave: "square" },   // giddy panic
-  error: { base: 180, wave: "triangle" },  // droopy
+  normal: { base: 400, wave: "square" },   // high and chirpy — BMO register
+  breach: { base: 520, wave: "square" },   // giddy panic
+  error: { base: 210, wave: "triangle" },  // droopy
 };
 
 export function setMuted(v) {

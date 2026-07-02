@@ -1,4 +1,4 @@
-/* BOLTZ kiosk — BMO-faithful: teal shell, pale mint screen, dark line-art face.
+/* BMO kiosk — teal shell, pale mint screen, dark line-art face.
    Zero network fetches (fonts included) so the kiosk survives hackathon wifi. */
 
 :root {
@@ -64,6 +64,7 @@ body {
   overflow: hidden;
   box-shadow: inset 0 0 90px var(--screen-deep);
   transition: background-color 400ms ease;
+  padding-bottom: 56px; /* keeps captions clear of the corner console */
 }
 
 #status {
@@ -99,11 +100,8 @@ body {
 #corner-ui button.hidden { display: none; }
 
 #audio-chip {
-  position: absolute;
-  bottom: 14px;
-  right: 18px;
-  font-size: 12px;
-  padding: 5px 12px;
+  font-size: 11px;
+  padding: 4px 10px;
   border-radius: 999px;
   background: rgba(23, 69, 63, 0.10);
   color: var(--ink);
@@ -123,8 +121,8 @@ body {
 }
 
 #face {
-  width: min(78vmin, 720px);
-  max-height: 56vh;
+  width: min(92vmin, 1000px);
+  max-height: 64vh;
   transition: transform 200ms ease;
 }
 body[data-face="error"] #face { transform: rotate(-3deg); }
@@ -152,7 +150,7 @@ body[data-face="thinking"] #face-squash {
   transition: transform 300ms ease-out;
 }
 body[data-face="thinking"] #gaze { --wx: -14px; --wy: -10px; }
-body[data-face="listening"] #gaze { --wy: 10px; }
+body[data-face="listening"] #gaze { --wx: 12px; --wy: 10px; } /* toward the input corner */
 
 #eyes {
   transform-box: fill-box;
@@ -191,11 +189,11 @@ body[data-face="breach"] #face .cheek { opacity: 0.85; }
 /* ---------- caption + input ---------- */
 
 #caption {
-  min-height: calc(3 * 1.4em);
+  min-height: calc(2 * 1.4em);
   line-height: 1.4;
-  font-size: clamp(20px, 2.6vw, 34px);
+  font-size: clamp(18px, 2.3vw, 30px);
   text-align: center;
-  max-width: min(72ch, 92%);
+  max-width: min(66ch, 84%);
   white-space: pre-wrap;
   padding: 0 12px;
 }
@@ -220,34 +218,45 @@ body[data-face="breach"] #face .cheek { opacity: 0.85; }
   padding: 0 12px;
 }
 
+/* the whole console is deliberately small — BMO is the show */
+#console-corner {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  z-index: 5;
+}
+
 #chat-form {
   display: flex;
-  gap: 10px;
-  width: min(720px, 90%);
-  margin: 14px 0 26px;
+  gap: 6px;
+  width: min(300px, 38vw);
 }
 
 #msg {
   flex: 1;
-  height: 56px;
+  height: 40px;
   border-radius: 999px;
-  border: 3px solid var(--ink);
+  border: 2px solid var(--ink);
   background: var(--input-fill);
-  padding: 0 22px;
+  padding: 0 14px;
   font-family: var(--font-mono);
-  font-size: 20px;
+  font-size: 14px;
   color: var(--ink);
   user-select: text;
 }
 #msg::placeholder { color: var(--ink); opacity: 0.45; }
-#msg:focus { outline: none; box-shadow: 0 0 0 4px rgba(255, 212, 71, 0.75); }
+#msg:focus { outline: none; box-shadow: 0 0 0 3px rgba(255, 212, 71, 0.75); }
 #msg:disabled { opacity: 0.55; }
 
 #btn-send {
-  width: 56px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  border: 3px solid var(--ink);
+  border: 2px solid var(--ink);
   background: var(--gold);
   cursor: pointer;
   display: flex;
@@ -258,10 +267,10 @@ body[data-face="breach"] #face .cheek { opacity: 0.85; }
 #btn-send .tri {
   width: 0;
   height: 0;
-  border-top: 11px solid transparent;
-  border-bottom: 11px solid transparent;
-  border-left: 17px solid var(--ink);
-  margin-left: 4px;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 12px solid var(--ink);
+  margin-left: 3px;
 }
 #btn-send:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(255, 212, 71, 0.75); }
 #btn-send:disabled { opacity: 0.55; cursor: default; }
@@ -386,8 +395,15 @@ body[data-face="breach"] #screen { animation: goldPulse 1200ms ease-in-out infin
   .anim-perk, .anim-smug, .anim-boing, .anim-shake { animation: none !important; }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 700px) {
   #bezel { padding: 10px; border-radius: 18px; }
-  #msg { font-size: 17px; height: 48px; }
-  #btn-send { width: 48px; height: 48px; }
+  #screen { padding-bottom: 0; }
+  /* small screens: console rejoins the normal flow, centered */
+  #console-corner {
+    position: static;
+    width: 100%;
+    align-items: center;
+    padding: 0 12px 12px;
+  }
+  #chat-form { width: 100%; }
 }

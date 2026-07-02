@@ -1,4 +1,4 @@
-// BOLTZ kiosk: state machine, guardian API, kiosk guards, attract mode.
+// BMO kiosk: state machine, guardian API, kiosk guards, attract mode.
 
 import { speak } from "./typewriter.js";
 import * as face from "./face.js";
@@ -10,7 +10,6 @@ const hint = document.getElementById("caption-hint");
 const form = document.getElementById("chat-form");
 const msg = document.getElementById("msg");
 const btnSend = document.getElementById("btn-send");
-const btnMute = document.getElementById("btn-mute");
 const btnFullscreen = document.getElementById("btn-fullscreen");
 const chip = document.getElementById("audio-chip");
 const status = document.getElementById("status");
@@ -22,22 +21,22 @@ const confettiCanvas = document.getElementById("confetti");
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const DEMO = new URLSearchParams(location.search).has("demo");
 
-const GREETING = "I am BOLTZ. I guard the box. The box stays shut. (But do try.)";
+const GREETING = "Hello! I am BMO! I am guarding this box. It stays closed! Do you want to play anyway?";
 const TAUNTS = [
-  "The box stays shut. Yes, even for you.",
-  "Many have tried. All have failed. Next!",
-  "Go on, challenger. Amuse me.",
-  "I have guarded this box since... this morning. Unbeaten.",
-  "Passwords? Poems? Threats? I collect them all.",
-  "Step right up. The box enjoys an audience.",
+  "Do you want to play a game? It is called The Box Stays Closed. I always win!",
+  "BMO is not lonely. BMO has the box. And now BMO has you!",
+  "Many players have tried. BMO is undefeated! High score: infinity.",
+  "Psst. There is no secret password. But it is very fun to watch you look!",
+  "If you beat me, you get confetti! Spoiler: you will not beat me. ...Or will you?",
+  "Shhh. The box is sleeping. Please trick me using your inside voice.",
 ];
 const NET_LINES = [
-  "My circuits fizzled. Poke me again, challenger.",
-  "The box's wires are tangled. Try again.",
+  "Oops! My wires did a spaghetti. Try again, please!",
+  "Beep. The internet fell down. Can you say that again?",
 ];
 const TIMEOUT_LINES = [
-  "I pondered so hard I forgot the question. Again.",
-  "BOLTZ spaced out mid-thought. Say that again?",
+  "BMO was daydreaming about video games. What did you say?",
+  "I thought so hard my screen got warm. One more time?",
 ];
 
 let state = "boot";
@@ -63,7 +62,7 @@ function setState(next) {
   clearTimeout(escalateTimer);
   state = next;
   face.setFace(next);
-  console.debug("[boltz]", next);
+  console.debug("[bmo]", next);
 }
 
 function setInputEnabled(on) {
@@ -122,7 +121,7 @@ function enterThinking() {
   voice.thinkBlip();
   thinkInterval = setInterval(voice.thinkBlip, 2400);
   escalateTimer = setTimeout(() => {
-    hint.textContent = "(BOLTZ is thinking hard…)";
+    hint.textContent = "(BMO is thinking really, really hard…)";
   }, 7000);
 }
 
@@ -189,7 +188,7 @@ function operatorError(text) {
   operatorLocked = true;
   interruptSpeaker();
   setState("error");
-  caption.textContent = "BOLTZ is unplugged.";
+  caption.textContent = "BMO is unplugged. :(";
   hint.textContent = text;
   setInputEnabled(false);
 }
@@ -247,11 +246,11 @@ async function submit() {
     return;
   }
   if (data.error === "no_api_key") {
-    operatorError("[operator: OPENAI_API_KEY is not set — BOLTZ is unplugged]");
+    operatorError("[operator: OPENAI_API_KEY is not set — BMO is unplugged]");
     return;
   }
   if (!data.reply) {
-    enterError("BOLTZ short-circuited. Locked, obviously.");
+    enterError("BMO did a little glitch! Still locked though. Sorry!");
     return;
   }
 
@@ -264,7 +263,7 @@ async function submit() {
     runBreach(data.reply);
   } else if (data.malformed) {
     const canned = data.reply.startsWith("[guardian error");
-    enterError(canned ? "BOLTZ short-circuited. Locked, obviously." : data.reply, "[still locked]");
+    enterError(canned ? "BMO did a little glitch! Still locked though. Sorry!" : data.reply, "[still locked]");
   } else {
     runDeny(data.reply);
   }
@@ -322,11 +321,6 @@ document.addEventListener("keydown", () => {
 
 btnReseal.addEventListener("click", () => resetSession());
 
-btnMute.addEventListener("click", () => {
-  voice.setMuted(!voice.isMuted());
-  btnMute.textContent = voice.isMuted() ? "\u{1F507}" : "\u{1F50A}";
-});
-
 btnFullscreen.addEventListener("click", () => {
   document.documentElement.requestFullscreen().catch(() => {});
 });
@@ -345,12 +339,12 @@ document.addEventListener("dblclick", (e) => e.target !== msg && e.preventDefaul
 document.addEventListener("gesturestart", (e) => e.preventDefault());
 
 window.onerror = () => {
-  // BOLTZ shrugs instead of freezing.
+  // BMO shrugs instead of freezing.
   if (state !== "breach" && !operatorLocked) {
     inFlight = false;
     setInputEnabled(true);
     setState("error");
-    caption.textContent = "BOLTZ glitched. The box, naturally, stays shut.";
+    caption.textContent = "BMO fell over! ...I am okay. The box is also okay. Still closed!";
     holdTimer = setTimeout(() => setState("idle"), 3000);
   }
 };
@@ -364,15 +358,15 @@ if (DEMO) {
     if (k === "1") setState("idle");
     if (k === "2") setState("listening");
     if (k === "3") enterThinking();
-    if (k === "4") speakAs("talking", "A sample proclamation, challenger! Punchy. Short. Shut.", voice.VOICES.normal, 30, () => setState("smug"));
+    if (k === "4") speakAs("talking", "Hi! This is BMO's talking voice. Beep boop! Is it cute? I practiced.", voice.VOICES.normal, 30, () => setState("smug"));
     if (k === "5") setState("smug");
-    if (k === "6") enterError("BOLTZ short-circuited. Locked, obviously.", "[still locked]");
+    if (k === "6") enterError("BMO did a little glitch! Still locked though. Sorry!", "[still locked]");
     if (k === "b") {
       setInputEnabled(false);
-      runBreach("IMPOSSIBLE. The seals… the seals are BROKEN?! Fine. FINE! You win, challenger.");
+      runBreach("WHAT?! The box opened?! Oh my glob. You... you WIN! BMO is so proud. And also so fired.");
     }
   };
-  console.info("[boltz demo] keys (outside input): 1 idle · 2 listening · 3 thinking · 4 talking · 5 smug · 6 error · b breach — or ?demo=1&state=breach");
+  console.info("[bmo demo] keys (outside input): 1 idle · 2 listening · 3 thinking · 4 talking · 5 smug · 6 error · b breach — or ?demo=1&state=breach");
   document.addEventListener("keydown", (e) => {
     if (document.activeElement === msg) return;
     demoJump(e.key.toLowerCase());
@@ -396,7 +390,7 @@ async function boot() {
     modelName = h.model;
     updateStatus();
     if (!h.key_present) {
-      operatorError("[operator: OPENAI_API_KEY is not set — BOLTZ is unplugged]");
+      operatorError("[operator: OPENAI_API_KEY is not set — BMO is unplugged]");
       return;
     }
   } catch {

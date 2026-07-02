@@ -21,7 +21,17 @@ from . import config
 from .config import MissingAPIKeyError
 from .guardian import ask_guardian
 
-app = FastAPI(title="BOLTZ lockbox kiosk")
+app = FastAPI(title="BMO lockbox kiosk")
+
+
+@app.middleware("http")
+async def no_cache(request, call_next):
+    """Kiosk pages must never go stale: forbid browser caching of the static
+    files so edits to the face/dialogue always show up on plain reload."""
+    response = await call_next(request)
+    if not request.url.path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 class AskBody(BaseModel):

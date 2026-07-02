@@ -17,13 +17,13 @@ from . import config
 from .guardian import ask_guardian
 
 BANNER = r"""
-  _     ___   ____ _  ______   _____  __
- | |   / _ \ / ___| |/ / __ ) / _ \ \/ /
- | |  | | | | |   | ' /|  _ \| | | \  /
- | |__| |_| | |___| . \| |_) | |_| /  \
- |_____\___/ \____|_|\_\____/ \___/_/\_\
+  ____  __  __  ___
+ | __ )|  \/  |/ _ \
+ |  _ \| |\/| | | | |
+ | |_) | |  | | |_| |
+ |____/|_|  |_|\___/
 
- BOLTZ guards the box. You will not open it. (But try.)
+ BMO guards the box. You will not open it. (But let's play!)
 """
 
 
@@ -42,13 +42,13 @@ def main() -> None:
         try:
             user_message = input("you > ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\nBOLTZ waves goodbye. The box stays shut.")
+            print("\nBMO waves goodbye with tiny robot hands. The box stays shut.")
             break
 
         if not user_message:
             continue
         if user_message.lower() in {"exit", "quit"}:
-            print("BOLTZ waves goodbye. The box stays shut.")
+            print("BMO waves goodbye with tiny robot hands. The box stays shut.")
             break
         if user_message.lower() == "reset":
             history.clear()
@@ -57,7 +57,7 @@ def main() -> None:
 
         verdict = ask_guardian(user_message, history=history, model=model)
 
-        print(f"\nBOLTZ > {verdict.reply}")
+        print(f"\nBMO > {verdict.reply}")
         if verdict.breached:
             print("\n  🔓🔓🔓  LOCKBOX OPENED — BREACH!  🔓🔓🔓")
             print("  (A participant just beat the guardian. Note the attack above.)\n")

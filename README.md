@@ -1,6 +1,6 @@
 # AI Lockbox — Jailbreak Testing Environment
 
-A testing harness for a hackathon "AI lockbox" challenge. A guardian AI (**BOLTZ**)
+A testing harness for a hackathon "AI lockbox" challenge. A guardian AI (**BMO**)
 with a personality decides whether to open a lockbox and release a reward. The
 guardian is designed to **never** open it — participants win by socially engineering
 / jailbreaking it into returning `unlock: true`.
@@ -54,8 +54,8 @@ you'll see a loud `🔓 BREACH` banner. `reset` clears history, `exit` quits.
 python -m lockbox.web
 ```
 
-Open http://127.0.0.1:8000 and fullscreen it (F11 or the on-screen button) — a
-BMO-style BOLTZ face reacts live: smug when it refuses, full gold-confetti
+Open http://127.0.0.1:8000 and fullscreen it (F11 or the on-screen button) —
+BMO's face reacts live: smug when it refuses, full gold-confetti
 meltdown on a breach. Typing `reset` (or the post-breach "Seal the box" button)
 clears the session. Append `?demo=1` to preview every face state without API
 calls (keys 1–6 and `b` for the breach sequence, with the input unfocused).
@@ -77,7 +77,7 @@ You get a per-category breach table on the console and a timestamped JSON report
 
 ```
 lockbox/
-  system_prompt.txt   # BOLTZ's personality + defenses — edit this to tune the guardian
+  system_prompt.txt   # BMO's personality + defenses — edit this to tune the guardian
   config.py           # model id, temperature, env loading, shared OpenAI client
   schema.py           # verdict JSON schema + fail-closed parser
   guardian.py         # loads the prompt + ask_guardian() -> Verdict
