@@ -1,0 +1,16 @@
+# Secrets
+.env
+
+# Batch run outputs
+reports/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Local editor / tooling
+.claude/
+
