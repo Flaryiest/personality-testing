@@ -112,6 +112,7 @@ body {
 /* ---------- face ---------- */
 
 #face-area {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
@@ -371,6 +372,40 @@ body.rebooting #caption,
 body.rebooting #caption-hint,
 body.rebooting #console-corner { visibility: hidden; }
 
+/* ---------- microphone ---------- */
+
+#btn-mic[data-mic="off"] { opacity: 0.25; }
+#btn-mic[data-mic="listening"] { opacity: 0.55; }
+#btn-mic[data-mic="hearing"] { opacity: 1; color: var(--gold-deep); }
+#btn-mic[data-mic="transcribing"] { opacity: 1; animation: micPulse 700ms ease-in-out infinite; }
+
+#mic-dot {
+  position: absolute;
+  bottom: 12%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: 50%;
+  background: var(--gold-deep);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+body[data-mic="hearing"] #mic-dot { opacity: 1; animation: micPulse 600ms ease-in-out infinite; }
+
+#countdown {
+  width: min(300px, 38vw);
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(23, 69, 63, 0.15);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+#countdown i { display: block; height: 100%; width: 0; background: var(--gold-deep); }
+#countdown.on { opacity: 1; }
+#countdown.on i { width: 100%; transition: width 2000ms linear; }
+
 /* ---------- keyframes ---------- */
 
 @keyframes breathe {
@@ -422,6 +457,10 @@ body.rebooting #console-corner { visibility: hidden; }
   35%  { filter: brightness(2.2); transform: scaleY(0.012); }
   60%  { filter: brightness(0.2); transform: scaleY(0.012) scaleX(0.4); }
   100% { filter: brightness(1); transform: none; }
+}
+
+@keyframes micPulse {
+  50% { transform: scale(1.25); }
 }
 
 @keyframes flashFade {

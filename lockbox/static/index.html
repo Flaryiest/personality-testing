@@ -10,6 +10,7 @@
   <div id="bezel">
     <div id="screen">
       <div id="corner-ui">
+        <button id="btn-mic" type="button" class="hidden" data-mic="off" aria-label="Toggle microphone">&#x1F399;</button>
         <button id="btn-fullscreen" type="button" aria-label="Enter fullscreen">&#x26F6;</button>
       </div>
 
@@ -50,6 +51,7 @@
             </g>
           </g>
         </svg>
+        <div id="mic-dot" aria-hidden="true"></div>
       </div>
 
       <p id="caption" aria-live="polite"></p>
@@ -61,7 +63,8 @@
                  autocomplete="off" autocapitalize="off" spellcheck="false">
           <button id="btn-send" type="submit" aria-label="Send"><span class="tri"></span></button>
         </form>
-        <div id="audio-chip">tap for sound</div>
+        <div id="countdown"><i></i></div>
+        <div id="audio-chip">tap for sound + mic</div>
       </div>
     </div>
     <div id="status"></div>

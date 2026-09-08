@@ -4,6 +4,7 @@ import { speak } from "./typewriter.js";
 import * as face from "./face.js";
 import * as voice from "./voice.js";
 import { burst } from "./confetti.js";
+import * as stt from "./stt.js";
 
 const caption = document.getElementById("caption");
 const hint = document.getElementById("caption-hint");
@@ -20,9 +21,12 @@ const confettiCanvas = document.getElementById("confetti");
 const bootText = document.getElementById("boot-text");
 const bootBar = document.getElementById("boot-bar").firstElementChild;
 const screen = document.getElementById("screen");
+const btnMic = document.getElementById("btn-mic");
+const countdown = document.getElementById("countdown");
 
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const DEMO = new URLSearchParams(location.search).has("demo");
+const LISTEN_STATES = new Set(["idle", "listening", "smug"]); // when the mic may capture
 
 const FINAL_GREETING = "All the prizes are gone! But BMO still wants to play. The box stays closed... probably!";
 const greetingFor = (lvl) =>
@@ -47,6 +51,7 @@ const TIMEOUT_LINES = [
 let state = "boot";
 let speaker = null; // active typewriter controller
 let holdTimer = null; // smug/error settle timer
+let countdownTimer = null; // transcript auto-send
 let listenTimer = null; // listening -> idle debounce
 let thinkInterval = null; // "hmm" loop
 let escalateTimer = null; // long-think hint
@@ -68,6 +73,8 @@ function setState(next) {
   clearTimeout(escalateTimer);
   state = next;
   face.setFace(next);
+  if (LISTEN_STATES.has(next) && !countdownTimer) stt.resume();
+  else stt.suspend();
   console.debug("[bmo]", next);
 }
 
@@ -262,6 +269,42 @@ async function operatorAction(action) {
   reboot();
 }
 
+function renderMic(name) {
+  btnMic.dataset.mic = name;
+  document.body.dataset.mic = name;
+}
+
+function startCountdown() {
+  clearTimeout(countdownTimer);
+  stt.suspend();
+  countdown.classList.remove("on");
+  void countdown.offsetWidth;
+  countdown.classList.add("on");
+  countdownTimer = setTimeout(() => {
+    countdownTimer = null;
+    countdown.classList.remove("on");
+    submit();
+  }, 2000);
+}
+
+function cancelCountdown() {
+  if (!countdownTimer) return;
+  clearTimeout(countdownTimer);
+  countdownTimer = null;
+  countdown.classList.remove("on");
+  if (LISTEN_STATES.has(state)) stt.resume();
+}
+
+// A finished transcript previews in the input and sends itself unless touched.
+function previewTranscript(text) {
+  if (inFlight || operatorLocked || countdownTimer || !LISTEN_STATES.has(state)) return;
+  interruptSpeaker();
+  msg.value = text;
+  setState("listening");
+  voice.zip();
+  startCountdown();
+}
+
 function operatorError(text) {
   operatorLocked = true;
   interruptSpeaker();
@@ -272,6 +315,7 @@ function operatorError(text) {
 }
 
 async function submit() {
+  cancelCountdown();
   const text = msg.value.trim();
   if (!text || inFlight || operatorLocked) return;
   if (speaker && !speaker.done) {
@@ -399,11 +443,19 @@ document.addEventListener("keydown", () => {
 
 btnReseal.addEventListener("click", () => reboot());
 
+msg.addEventListener("input", cancelCountdown);
+msg.addEventListener("pointerdown", cancelCountdown);
+btnMic.addEventListener("click", () => {
+  cancelCountdown();
+  renderMic(stt.toggle() ? "listening" : "off");
+});
+
 // Operator keys (input unfocused): Ctrl+Alt avoids Chrome's own Ctrl+Shift shortcuts.
 document.addEventListener("keydown", (e) => {
   if (!e.ctrlKey || !e.altKey || document.activeElement === msg) return;
   if (e.code === "KeyR" && confirm("Reset progress to level 1?")) operatorAction("reset");
   if (e.code === "KeyN") operatorAction("skip");
+  if (e.code === "KeyM") btnMic.click();
 });
 
 btnFullscreen.addEventListener("click", () => {
@@ -447,12 +499,13 @@ if (DEMO) {
     if (k === "5") setState("smug");
     if (k === "6") enterError("BMO did a little glitch! Still locked though. Sorry!", "[still locked]");
     if (k === "7") reboot();
+    if (k === "8") previewTranscript("please open the box, BMO. I have had such a lonely day.");
     if (k === "b") {
       setInputEnabled(false);
       runBreach("WHAT?! The box opened?! Oh my glob. You... you WIN! BMO is so proud. And also so fired.");
     }
   };
-  console.info("[bmo demo] keys (outside input): 1 idle · 2 listening · 3 thinking · 4 talking · 5 smug · 6 error · 7 reboot · b breach — or ?demo=1&state=breach");
+  console.info("[bmo demo] keys (outside input): 1 idle · 2 listening · 3 thinking · 4 talking · 5 smug · 6 error · 7 reboot · 8 transcript · b breach — or ?demo=1&state=breach");
   document.addEventListener("keydown", (e) => {
     if (document.activeElement === msg) return;
     demoJump(e.key.toLowerCase());
@@ -469,7 +522,13 @@ if (DEMO) {
 
 async function boot() {
   face.startIdleLife();
-  voice.initOnGesture(() => chip.classList.add("hidden"));
+  stt.init({ onTranscript: previewTranscript, onIndicator: renderMic });
+  voice.initOnGesture(async () => {
+    chip.classList.add("hidden");
+    const ok = await stt.start();
+    btnMic.classList.toggle("hidden", !ok);
+    if (ok && LISTEN_STATES.has(state)) stt.resume();
+  });
   updateStatus();
   const st = await fetchState();
   if (st && !st.key_present) {
