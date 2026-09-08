@@ -6,7 +6,6 @@
 let ctx = null;
 let master = null;
 let unlocked = false;
-let muted = false;
 
 const PENTATONIC = [0, 3, 5, 7, 10];
 
@@ -15,13 +14,6 @@ export const VOICES = {
   breach: { base: 520, wave: "square" },   // giddy panic
   error: { base: 210, wave: "triangle" },  // droopy
 };
-
-export function setMuted(v) {
-  muted = v;
-}
-export function isMuted() {
-  return muted;
-}
 
 export function initOnGesture(onUnlock) {
   const unlock = () => {
@@ -43,7 +35,7 @@ export function initOnGesture(onUnlock) {
 }
 
 function ready() {
-  return unlocked && !muted && ctx && ctx.state === "running";
+  return unlocked && ctx && ctx.state === "running";
 }
 
 function tone(freq, { wave = "square", dur = 0.07, gain = 0.05, at = 0, glideTo = null } = {}) {
@@ -105,4 +97,8 @@ export function thinkBlip() {
 
 export function zip() {
   tone(400, { wave: "triangle", dur: 0.12, gain: 0.04, glideTo: 1200 });
+}
+
+export function powerDown() {
+  tone(660, { wave: "triangle", dur: 0.45, gain: 0.05, glideTo: 90 });
 }

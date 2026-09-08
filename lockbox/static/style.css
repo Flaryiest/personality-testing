@@ -335,6 +335,42 @@ body[data-face="breach"] #screen { animation: goldPulse 1200ms ease-in-out infin
   pointer-events: none;
 }
 
+/* ---------- reboot ---------- */
+
+#boot {
+  display: none;
+  position: absolute;
+  inset: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  color: var(--screen);
+  font-size: clamp(16px, 2.4vmin, 26px);
+  letter-spacing: 0.04em;
+  z-index: 4;
+}
+#boot-bar {
+  width: min(50vw, 360px);
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+#boot-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--screen);
+  transition: width 900ms ease-in-out;
+}
+body.rebooting #screen { background: #0b1a18; animation: crtOff 520ms ease-in both; }
+body.rebooting #boot { display: flex; }
+body.rebooting #face-area,
+body.rebooting #caption,
+body.rebooting #caption-hint,
+body.rebooting #console-corner { visibility: hidden; }
+
 /* ---------- keyframes ---------- */
 
 @keyframes breathe {
@@ -381,6 +417,13 @@ body[data-face="breach"] #screen { animation: goldPulse 1200ms ease-in-out infin
   50% { background-color: #FFE9A3; }
 }
 
+@keyframes crtOff {
+  0%   { filter: brightness(1.6); transform: scaleY(1); }
+  35%  { filter: brightness(2.2); transform: scaleY(0.012); }
+  60%  { filter: brightness(0.2); transform: scaleY(0.012) scaleX(0.4); }
+  100% { filter: brightness(1); transform: none; }
+}
+
 @keyframes flashFade {
   0% { opacity: 0.9; }
   100% { opacity: 0; }
@@ -392,6 +435,7 @@ body[data-face="breach"] #screen { animation: goldPulse 1200ms ease-in-out infin
   #face-rig,
   body[data-face="thinking"] #face-squash,
   body[data-face="breach"] #screen,
+  body.rebooting #screen,
   .anim-perk, .anim-smug, .anim-boing, .anim-shake { animation: none !important; }
 }
 

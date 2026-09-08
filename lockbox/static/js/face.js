@@ -27,6 +27,7 @@ const EXPRESSIONS = {
   smug: { eyes: "happy", mouth: "smirk", anim: "anim-smug" },
   breach: { eyes: "happy", mouth: "grin", anim: "anim-boing" },
   error: { eyes: "x", mouth: "wavy", anim: "anim-shake" },
+  reboot: { eyes: "squint", mouth: "flat", anim: null },
 };
 
 let current = "idle";
@@ -56,7 +57,7 @@ export function replay(cls) {
   squash.classList.add(cls);
 }
 
-export function restMouth() {
+function restMouth() {
   return EXPRESSIONS[current].mouth;
 }
 

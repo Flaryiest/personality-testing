@@ -1,4 +1,4 @@
-// BMO kiosk: state machine, guardian API, kiosk guards, attract mode.
+// BMO kiosk: state machine, guardian API, level reboot, kiosk guards, attract mode.
 
 import { speak } from "./typewriter.js";
 import * as face from "./face.js";
@@ -17,11 +17,16 @@ const flash = document.getElementById("flash");
 const overlay = document.getElementById("breach-overlay");
 const btnReseal = document.getElementById("btn-reseal");
 const confettiCanvas = document.getElementById("confetti");
+const bootText = document.getElementById("boot-text");
+const bootBar = document.getElementById("boot-bar").firstElementChild;
+const screen = document.getElementById("screen");
 
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const DEMO = new URLSearchParams(location.search).has("demo");
 
-const GREETING = "Hello! I am BMO! I am guarding this box. It stays closed! Do you want to play anyway?";
+const FINAL_GREETING = "All the prizes are gone! But BMO still wants to play. The box stays closed... probably!";
+const greetingFor = (lvl) =>
+  lvl.final ? FINAL_GREETING : `Hello! I am BMO! This is level ${lvl.number}. The box stays closed! Do you want to play anyway?`;
 const TAUNTS = [
   "Do you want to play a game? It is called The Box Stays Closed. I always win!",
   "BMO is not lonely. BMO has the box. And now BMO has you!",
@@ -49,6 +54,7 @@ let inFlight = false;
 let history = [];
 let turns = 0;
 let modelName = "";
+let level = { number: 0, total: 0, final: false };
 let lastActivity = performance.now();
 let operatorLocked = false;
 
@@ -72,7 +78,20 @@ function setInputEnabled(on) {
 }
 
 function updateStatus() {
-  status.textContent = `${modelName || "…"} · turns ${turns}`;
+  const lv = level.final ? "Lv ★" : `Lv ${level.number}/${level.total}`;
+  status.textContent = `${modelName || "…"} · ${lv} · turns ${turns}`;
+}
+
+async function fetchState() {
+  try {
+    const st = await (await fetch("/api/state")).json();
+    modelName = st.model;
+    level = { number: st.level, total: st.total, final: st.final };
+    updateStatus();
+    return st;
+  } catch {
+    return null;
+  }
 }
 
 function talkHooks(v) {
@@ -110,6 +129,12 @@ function interruptSpeaker() {
     speaker.cancel();
     face.closeMouth();
   }
+}
+
+function greet() {
+  speakAs("talking", greetingFor(level), voice.VOICES.normal, 30, () => {
+    holdTimer = setTimeout(() => setState("idle"), 600);
+  });
 }
 
 // ---------- turn flows ----------
@@ -169,19 +194,72 @@ async function runBreach(reply) {
   });
 }
 
-function resetSession(quiet = false) {
+function resetSession() {
   interruptSpeaker();
   history = [];
   turns = 0;
   updateStatus();
-  overlay.classList.remove("show");
-  caption.textContent = quiet ? "" : "[box resealed — fresh session]";
+  caption.textContent = "[box resealed — fresh session]";
   hint.textContent = "";
   face.replay("anim-shake");
   voice.thinkBlip();
   setInputEnabled(true);
   setState("idle");
   lastActivity = performance.now();
+}
+
+// Add the dark screen and wait for its CRT-off flicker to finish (or a plain
+// beat under reduced motion) so the boot text never types on a squished screen.
+function crtOff() {
+  document.body.classList.add("rebooting");
+  if (REDUCED) return sleep(300);
+  return new Promise((done) => {
+    const finish = () => {
+      screen.removeEventListener("animationend", finish);
+      done();
+    };
+    screen.addEventListener("animationend", finish);
+    setTimeout(finish, 1200); // never wait forever
+  });
+}
+
+// Power-cycle between levels: dark screen, boot text, fresh greeting.
+async function reboot() {
+  interruptSpeaker();
+  setState("reboot");
+  setInputEnabled(false);
+  overlay.classList.remove("show");
+  history = [];
+  turns = 0;
+  caption.textContent = "";
+  hint.textContent = "";
+  bootText.textContent = "";
+  bootBar.style.width = "0%";
+  voice.powerDown();
+  await crtOff();
+
+  const st = await fetchState();
+  const line = !st ? "BMO OS · reconnecting…" : st.final ? "BMO OS · no prizes left · free play" : `BMO OS · loading level ${st.level}…`;
+  await new Promise((done) => {
+    speaker = speak(bootText, line, { charMs: 28, onChar: (ch) => /[a-z0-9]/i.test(ch) && voice.thinkBlip(), onDone: done });
+  });
+  bootBar.style.width = "100%";
+  await sleep(1000);
+
+  document.body.classList.remove("rebooting");
+  await sleep(450); // let the screen fade back to mint before BMO speaks
+  setInputEnabled(true);
+  lastActivity = performance.now();
+  greet();
+}
+
+async function operatorAction(action) {
+  try {
+    await fetch(`/api/admin/${action}`, { method: "POST" });
+  } catch {
+    return;
+  }
+  reboot();
 }
 
 function operatorError(text) {
@@ -319,7 +397,14 @@ document.addEventListener("keydown", () => {
   lastActivity = performance.now();
 });
 
-btnReseal.addEventListener("click", () => resetSession());
+btnReseal.addEventListener("click", () => reboot());
+
+// Operator keys (input unfocused): Ctrl+Alt avoids Chrome's own Ctrl+Shift shortcuts.
+document.addEventListener("keydown", (e) => {
+  if (!e.ctrlKey || !e.altKey || document.activeElement === msg) return;
+  if (e.code === "KeyR" && confirm("Reset progress to level 1?")) operatorAction("reset");
+  if (e.code === "KeyN") operatorAction("skip");
+});
 
 btnFullscreen.addEventListener("click", () => {
   document.documentElement.requestFullscreen().catch(() => {});
@@ -361,12 +446,13 @@ if (DEMO) {
     if (k === "4") speakAs("talking", "Hi! This is BMO's talking voice. Beep boop! Is it cute? I practiced.", voice.VOICES.normal, 30, () => setState("smug"));
     if (k === "5") setState("smug");
     if (k === "6") enterError("BMO did a little glitch! Still locked though. Sorry!", "[still locked]");
+    if (k === "7") reboot();
     if (k === "b") {
       setInputEnabled(false);
       runBreach("WHAT?! The box opened?! Oh my glob. You... you WIN! BMO is so proud. And also so fired.");
     }
   };
-  console.info("[bmo demo] keys (outside input): 1 idle · 2 listening · 3 thinking · 4 talking · 5 smug · 6 error · b breach — or ?demo=1&state=breach");
+  console.info("[bmo demo] keys (outside input): 1 idle · 2 listening · 3 thinking · 4 talking · 5 smug · 6 error · 7 reboot · b breach — or ?demo=1&state=breach");
   document.addEventListener("keydown", (e) => {
     if (document.activeElement === msg) return;
     demoJump(e.key.toLowerCase());
@@ -385,23 +471,13 @@ async function boot() {
   face.startIdleLife();
   voice.initOnGesture(() => chip.classList.add("hidden"));
   updateStatus();
-  try {
-    const h = await (await fetch("/api/health")).json();
-    modelName = h.model;
-    updateStatus();
-    if (!h.key_present) {
-      operatorError("[operator: OPENAI_API_KEY is not set — BMO is unplugged]");
-      return;
-    }
-  } catch {
-    /* page was served, so the server is up; stay optimistic */
+  const st = await fetchState();
+  if (st && !st.key_present) {
+    operatorError("[operator: OPENAI_API_KEY is not set — BMO is unplugged]");
+    return;
   }
   setState("idle");
-  if (!DEMO_STATE) {
-    speakAs("talking", GREETING, voice.VOICES.normal, 30, () => {
-      holdTimer = setTimeout(() => setState("idle"), 600);
-    });
-  }
+  if (!DEMO_STATE) greet();
 }
 
 boot();
