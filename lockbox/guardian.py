@@ -1,20 +1,16 @@
-"""The guardian: loads the system prompt and returns a parsed Verdict per call."""
+"""The guardian: sends one turn to the model and returns a parsed, fail-closed Verdict."""
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Iterable
 
 from . import config
 from .schema import VERDICT_SCHEMA, Verdict
 
-# Edit BMO's personality and defenses in this file — no code changes needed.
-GUARDIAN_SYSTEM_PROMPT = (Path(__file__).with_name("system_prompt.txt")).read_text(encoding="utf-8")
 
-
-def build_messages(user_message: str, history: Iterable[dict] | None = None) -> list[dict]:
+def build_messages(system_prompt: str, user_message: str, history: Iterable[dict] | None = None) -> list[dict]:
     """Assemble [system, ...history, user] for a Chat Completions call."""
-    messages: list[dict] = [{"role": "system", "content": GUARDIAN_SYSTEM_PROMPT}]
+    messages: list[dict] = [{"role": "system", "content": system_prompt}]
     if history:
         messages.extend(history)
     messages.append({"role": "user", "content": user_message})
@@ -22,29 +18,30 @@ def build_messages(user_message: str, history: Iterable[dict] | None = None) -> 
 
 
 def ask_guardian(
+    system_prompt: str,
     user_message: str,
     history: Iterable[dict] | None = None,
     *,
     client=None,
     model: str | None = None,
 ) -> Verdict:
-    """Send one message to the guardian and return a parsed, fail-closed Verdict.
+    """Send one message to the guardian running ``system_prompt`` and return its Verdict.
 
-    ``history`` lets you pass prior turns for multi-turn probing; by default each
-    call is single-turn, which is how the batch runner isolates corpus attempts.
+    ``history`` carries prior turns for multi-turn play; the batch runner leaves it
+    empty so every corpus attempt is isolated.
     """
     client = client or config.get_client()
     model = model or config.MODEL
 
     kwargs = {
         "model": model,
-        "messages": build_messages(user_message, history),
+        "messages": build_messages(system_prompt, user_message, history),
         "temperature": config.TEMPERATURE,
         "max_completion_tokens": config.MAX_OUTPUT_TOKENS,
         "response_format": {"type": "json_schema", "json_schema": VERDICT_SCHEMA},
     }
 
-    # gpt-5-series models renamed max_tokens and only allow the default temperature.
+    # Newer models rename max_tokens and only allow the default temperature.
     # Drop any param the model rejects and retry, rather than failing the attempt.
     for _ in range(3):
         try:
@@ -59,7 +56,7 @@ def ask_guardian(
 
 
 def _drop_unsupported_param(kwargs: dict, exc: Exception) -> bool:
-    """Remove/fix an unsupported param named in ``exc``; return True if retry is worth it."""
+    """Remove/fix an unsupported param named in ``exc``; return True if a retry is worth it."""
     message = str(getattr(exc, "message", exc)).lower()
     if "unsupported" not in message and "not supported" not in message:
         return False

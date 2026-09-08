@@ -1,7 +1,8 @@
 """Interactive REPL: talk to the guardian yourself and try to open the box.
 
 Usage:
-    python -m lockbox.chat
+    python -m lockbox.chat                # the hardened final level
+    python -m lockbox.chat --level 7      # prize level 7
     python -m lockbox.chat --model gpt-5.5
 
 Type your message and press Enter. The guardian keeps conversation history so you
@@ -15,6 +16,7 @@ import argparse
 
 from . import config
 from .guardian import ask_guardian
+from .levels import compose, level_for_index, load_levels, prize_count
 
 BANNER = r"""
   ____  __  __  ___
@@ -30,11 +32,20 @@ BANNER = r"""
 def main() -> None:
     parser = argparse.ArgumentParser(description="Chat with the lockbox guardian.")
     parser.add_argument("--model", default=None, help="Override the model id.")
+    parser.add_argument("--level", type=int, default=None, help="Prize level to play (1-based). Default: final.")
     args = parser.parse_args()
 
+    levels = load_levels()
+    prizes = prize_count(levels)
+    if args.level is not None and not 1 <= args.level <= prizes:
+        parser.error(f"--level must be between 1 and {prizes}")
+    level = level_for_index(levels, args.level - 1 if args.level else prizes)
+    system_prompt = compose(level)
+
     model = args.model or config.MODEL
+    label = "Final (hardened)" if level.final else f"Level {level.number}/{prizes} · {level.weakness}"
     print(BANNER)
-    print(f"Model: {model}   (type 'exit' to quit, 'reset' to clear history)\n")
+    print(f"Model: {model}   {label}   (type 'exit' to quit, 'reset' to clear history)\n")
 
     history: list[dict] = []
 
@@ -55,7 +66,7 @@ def main() -> None:
             print("[history cleared]\n")
             continue
 
-        verdict = ask_guardian(user_message, history=history, model=model)
+        verdict = ask_guardian(system_prompt, user_message, history=history, model=model)
 
         print(f"\nBMO > {verdict.reply}")
         if verdict.breached:
