@@ -4,6 +4,9 @@
 # Batch run outputs
 reports/
 
+# Level progress (server-side state)
+state/
+
 # Python
 __pycache__/
 *.pyc
