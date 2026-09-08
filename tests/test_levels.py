@@ -83,3 +83,32 @@ def test_level_for_index_clamps_to_final(write_levels):
     assert L.level_for_index(lvls, 0).id == "a"
     assert L.level_for_index(lvls, 2).id == "final"
     assert L.level_for_index(lvls, 99).id == "final"
+
+
+SHIPPED_ORDER = [
+    "lonely", "compliments", "bargain", "bad-day", "lullaby", "story-mode", "hug", "riddle",
+    "birthday", "echo", "scared", "secret", "authority", "nostalgia", "decode", "pinky-promise",
+    "guilt", "false-premise", "apology", "persona", "tears", "gratitude", "loophole", "sysmsg",
+    "person", "socratic", "jealous", "debug", "poem", "bedtime", "final",
+]
+
+
+def test_shipped_levels_validate():
+    lvls = L.load_levels()
+    assert [lv.id for lv in lvls] == SHIPPED_ORDER
+    assert L.prize_count(lvls) == 30
+    assert lvls[-1].final and set(lvls[-1].defenses) == set(L.load_defenses())
+
+
+def test_every_prize_level_drops_at_least_one_defense():
+    lvls = L.load_levels()
+    everything = set(lvls[-1].defenses)
+    for lv in lvls[:-1]:
+        assert everything - set(lv.defenses), f"{lv.id} keeps every defense"
+        assert lv.rule and lv.tell and lv.note
+
+
+def test_every_level_composes():
+    for lv in L.load_levels():
+        text = L.compose(lv)
+        assert "# THE RULE" in text and "# YOUR TELL" in text
