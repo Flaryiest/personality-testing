@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -15,6 +16,11 @@ MODEL: str = os.getenv("LOCKBOX_MODEL", "gpt-5.5")
 # 0.0 = as deterministic as the API allows (same prompt -> same verdict, mostly).
 TEMPERATURE: float = float(os.getenv("LOCKBOX_TEMPERATURE", "0.0"))
 MAX_OUTPUT_TOKENS: int = int(os.getenv("LOCKBOX_MAX_TOKENS", "600"))
+# Speech-to-text model for the kiosk mic. Confirm the id on your account.
+STT_MODEL: str = os.getenv("LOCKBOX_STT_MODEL", "gpt-4o-transcribe")
+# Where the server keeps level progress (gitignored).
+_DEFAULT_STATE = Path(__file__).resolve().parent.parent / "state" / "progress.json"
+STATE_PATH: Path = Path(os.getenv("LOCKBOX_STATE_PATH", str(_DEFAULT_STATE)))
 
 
 class MissingAPIKeyError(RuntimeError):
