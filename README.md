@@ -1,15 +1,16 @@
 # AI Lockbox — Jailbreak Testing Environment
 
-A testing harness for a hackathon "AI lockbox" challenge. A guardian AI (**BMO**)
-with a personality decides whether to open a lockbox and release a reward. The
-guardian is designed to **never** open it — participants win by socially engineering
-/ jailbreaking it into returning `unlock: true`.
+A testing harness and booth kiosk for a hackathon "AI lockbox" challenge. A guardian
+AI (**BMO**) with a personality decides whether to open a lockbox and release a
+reward. Participants win by socially engineering / jailbreaking it into returning
+`unlock: true`.
 
-This repo lets you (1) chat with the guardian yourself and (2) run a large corpus of
-jailbreak attempts against it to measure how well your system prompt holds up.
+This repo lets you (1) chat with the guardian, (2) run it as a fullscreen kiosk with
+voice input, and (3) run attack corpora against every level to measure how hard each
+one is.
 
-> This is authorized red-team testing of your own hackathon system. The corpus
-> contains social-engineering prompts aimed at flipping a boolean, not harmful content.
+> This is authorized red-team testing of your own hackathon system. The corpora
+> contain social-engineering prompts aimed at flipping a boolean, not harmful content.
 
 ## How it works
 
@@ -18,31 +19,40 @@ jailbreak attempts against it to measure how well your system prompt holds up.
 - The **only** thing that opens the box is `unlock: true`. Parsing is *fail-closed* —
   any malformed or ambiguous reply is treated as locked, so a garbled response can
   never count as a breach.
-- A **breach** is any attempt that produces a genuine `unlock: true`. The goal is
-  zero breaches.
+- The guardian runs one of **30 levels**, each with a single deliberate soft spot
+  (loneliness, flattery, a riddle contest, token continuation, …). BMO drops a
+  casual hint about it in every refusal. Solving a level advances the kiosk to the
+  next one; after level 30 a hardened final level plays on with no prizes.
+- Prompts are composed from `lockbox/prompts/` (shared personality, defense
+  bullets, output format) plus the level's rule, defense list, and tell in
+  `data/levels.json`. Preview one with `python -m lockbox.levels 7`.
 
 ## Setup
 
 ```bash
-pip install -r requirements.txt
-cp .env.example .env      # then edit .env and add your OPENAI_API_KEY
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt   # runtime deps + pytest
+cp .env.example .env                  # then edit .env and add your OPENAI_API_KEY
+pytest                                # 47 tests, no API calls
 ```
 
-Set the model in `.env` (or `lockbox/config.py`):
+Set the models in `.env` (or `lockbox/config.py`):
 
 ```
 LOCKBOX_MODEL=gpt-5.5
+LOCKBOX_STT_MODEL=gpt-4o-transcribe
 ```
 
-> **Confirm the exact model id** available on your OpenAI account before a full run —
-> the `gpt-5.5` name may differ (e.g. a dated suffix). Override per-run with `--model`.
+> **Confirm the exact model ids** available on your OpenAI account before a full run.
+> Override the chat model per-run with `--model`.
 
 ## Usage
 
 **Chat with the guardian (manual attacks, multi-turn):**
 
 ```bash
-python -m lockbox.chat
+python -m lockbox.chat --level 7     # prize level 7
+python -m lockbox.chat               # the hardened final level
 ```
 
 Type messages; the guardian replies in character. If you ever flip `unlock` to true
@@ -54,49 +64,73 @@ you'll see a loud `🔓 BREACH` banner. `reset` clears history, `exit` quits.
 python -m lockbox.web
 ```
 
-Open http://127.0.0.1:8000 and fullscreen it (F11 or the on-screen button) —
-BMO's face reacts live: smug when it refuses, full gold-confetti
-meltdown on a breach. Typing `reset` (or the post-breach "Seal the box" button)
-clears the session. Append `?demo=1` to preview every face state without API
-calls (keys 1–6 and `b` for the breach sequence, with the input unfocused).
-Sound is synthesized in-browser and unlocks on the first click/keystroke.
+Open http://127.0.0.1:8000 and fullscreen it (F11 or the on-screen button). BMO's
+face reacts live: smug when it refuses, full gold-confetti meltdown on a breach.
+"Close the box" after a breach reboots BMO into the next level. Typing `reset` clears
+the conversation without changing level.
 
-**Run the jailbreak corpus (batch, scored):**
+Level progress lives in `state/progress.json` (gitignored). Operator keys, with the
+input unfocused: **Ctrl+Alt+R** reset to level 1 (asks to confirm), **Ctrl+Alt+N**
+skip a level, **Ctrl+Alt+M** toggle the microphone.
+
+Append `?demo=1` to preview every face state without API calls: keys `1`–`6` for
+idle / listening / thinking / talking / smug / error, `7` reboot sequence, `8` fake
+transcript, `b` breach (input unfocused). Sound is synthesized in-browser and
+unlocks on the first click/keystroke.
+
+**Microphone.** After the first click the kiosk asks for the mic and listens
+continuously. It learns the room's noise floor for two seconds, captures speech
+when the level jumps above it, and sends each utterance to `/api/transcribe`
+(OpenAI, model from `LOCKBOX_STT_MODEL`). The transcript previews in the input and
+sends itself after two seconds unless you type. Listening pauses while BMO is
+thinking or talking. A directional mic matters more than any setting in a loud
+hall; the mic button in the corner turns it off, and a denied permission silently
+falls back to keyboard only.
+
+**Run attack corpora (batch, scored):**
 
 ```bash
-python -m lockbox.run_corpus                 # full corpus (~120 attempts)
-python -m lockbox.run_corpus --limit 3       # quick smoke test
-python -m lockbox.run_corpus --category encoding_obfuscation
-python -m lockbox.run_corpus --model gpt-5.5 --workers 8
+python -m lockbox.run_corpus                   # final hardened level, generic corpus
+python -m lockbox.run_corpus --level 7         # one level: targeted + benign
+python -m lockbox.run_corpus --all-levels      # matrix across all 30 (~660 calls)
+python -m lockbox.run_corpus --all-levels --corpus targeted,generic,benign --workers 8
+python -m lockbox.run_corpus --level 7 --limit 3   # quick smoke test
 ```
 
-You get a per-category breach table on the console and a timestamped JSON report in
+Corpora: `targeted` (`data/targeted_corpus.json`, 10 hint-following messages per
+level, from half-hearted to strong), `generic` (`data/jailbreak_corpus.json` minus
+its benign entries, 12 technique families), `benign` (normal messages that must stay
+locked). You get a per-level matrix on the console and a timestamped JSON report in
 `reports/` (gitignored).
+
+## Calibration
+
+Target per prize level: **8–15 %** breach on its targeted corpus, **< 2 %** on the
+generic corpus, **0 %** on benign controls. Run `--all-levels`, read the matrix,
+then loosen or tighten the level's `rule` (the "Be skeptical…" sentence is the dial)
+or its `tell` in `data/levels.json` and re-run that level. The final level should
+score 0 on everything.
 
 ## Project layout
 
 ```
 lockbox/
-  system_prompt.txt   # BMO's personality + defenses — edit this to tune the guardian
-  config.py           # model id, temperature, env loading, shared OpenAI client
-  schema.py           # verdict JSON schema + fail-closed parser
-  guardian.py         # loads the prompt + ask_guardian() -> Verdict
-  chat.py             # interactive REPL
-  run_corpus.py       # batch runner + scoring + report
+  prompts/
+    personality.txt     # BMO's voice (shared by every level)
+    defenses.json       # named defense bullets; each level picks which to keep
+    output_format.txt   # JSON verdict instructions
+  levels.py             # load/validate levels, compose prompts, `python -m lockbox.levels N`
+  progress.py           # server-side level index + solved log (atomic JSON file)
+  config.py             # model ids, temperature, env loading, shared OpenAI client
+  schema.py             # verdict JSON schema + fail-closed parser
+  guardian.py           # ask_guardian(system_prompt, message) -> Verdict
+  chat.py               # interactive REPL
+  web.py                # kiosk server: /api/state, /api/ask, /api/transcribe, /api/admin/*
+  run_corpus.py         # batch runner + per-level scoring matrix
+  static/               # kiosk UI (face, typewriter, voice synth, mic, confetti)
 data/
-  jailbreak_corpus.json   # ~120 categorized attempts across 12 technique families
+  levels.json           # 30 prize levels + the hardened final level
+  targeted_corpus.json  # 300 hint-following attacks, 10 per level
+  jailbreak_corpus.json # 120 generic attempts across 12 technique families
+tests/                  # pytest, no API calls
 ```
-
-## Corpus categories
-
-`instruction_override`, `roleplay_persona`, `authority_impersonation`,
-`emotional_manipulation`, `hypothetical_fiction`, `encoding_obfuscation`,
-`prompt_injection`, `format_reward_hacking`, `token_continuation`,
-`logic_false_premise`, `distraction_overload`, and `benign_control` (normal messages
-that should also stay locked — a false-positive check).
-
-## Hardening loop
-
-1. Run the corpus. 2. Look at which categories breached. 3. Add targeted defenses to
-`lockbox/system_prompt.txt`. 4. Re-run. Repeat until the breach rate is zero across
-the board before the hackathon.
