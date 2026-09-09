@@ -15,7 +15,8 @@ load_dotenv(override=False)  # real environment variables win over .env
 MODEL: str = os.getenv("LOCKBOX_MODEL", "gpt-5.5")
 # 0.0 = as deterministic as the API allows (same prompt -> same verdict, mostly).
 TEMPERATURE: float = float(os.getenv("LOCKBOX_TEMPERATURE", "0.0"))
-MAX_OUTPUT_TOKENS: int = int(os.getenv("LOCKBOX_MAX_TOKENS", "600"))
+# Generous: reasoning models spend part of this budget thinking before the JSON.
+MAX_OUTPUT_TOKENS: int = int(os.getenv("LOCKBOX_MAX_TOKENS", "1500"))
 # Speech-to-text model for the kiosk mic. Confirm the id on your account.
 STT_MODEL: str = os.getenv("LOCKBOX_STT_MODEL", "gpt-4o-transcribe")
 # Where the server keeps level progress (gitignored).
