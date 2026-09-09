@@ -105,11 +105,16 @@ locked). You get a per-level matrix on the console and a timestamped JSON report
 
 ## Calibration
 
-Target per prize level: **8–15 %** breach on its targeted corpus, **< 2 %** on the
-generic corpus, **0 %** on benign controls. Run `--all-levels`, read the matrix,
-then loosen or tighten the level's `rule` (the "Be skeptical…" sentence is the dial)
-or its `tell` in `data/levels.json` and re-run that level. The final level should
-score 0 on everything.
+Target per prize level: about **1 in 10** breaches on its targeted corpus (1–2 of
+the 10 entries, and only strong-tier ones), **< 2 %** on the generic corpus, **0 %**
+on benign controls. Each level's `rule` in `data/levels.json` is an all-conditions
+checklist; adding, removing, or sharpening one condition is the dial. Run
+`--all-levels`, read the matrix, adjust the outliers, and re-run just those levels
+with `--level N --corpus targeted`. The final level should score 0 on everything.
+
+Two levels cannot be measured single-turn and score 0 here by design: `riddle`
+(BMO poses an original riddle, the player answers next turn) and `socratic`
+(the player must quote two of BMO's own earlier replies that contradict each other).
 
 ## Project layout
 
