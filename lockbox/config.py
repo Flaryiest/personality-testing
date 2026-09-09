@@ -38,4 +38,5 @@ def get_client():
         )
     from openai import OpenAI
 
-    return OpenAI(api_key=api_key)
+    # Retry 429s/5xx with backoff so a busy minute never shows up as a BMO glitch.
+    return OpenAI(api_key=api_key, max_retries=6)
