@@ -1,9 +1,11 @@
 """Corpus selection and per-corpus scoring for the calibration runner."""
 
+from collections import Counter
+
 import pytest
 
 from lockbox import run_corpus as rc
-from lockbox.levels import Level
+from lockbox.levels import Level, load_levels
 
 
 def level(level_id="lonely", final=False):
@@ -50,3 +52,15 @@ def test_parse_args_validates():
     with pytest.raises(SystemExit):
         rc.parse_args(["--level", "2", "--all-levels"])
 
+
+
+def test_shipped_targeted_corpus_covers_every_prize_level():
+    entries = rc.load_json_list(rc.TARGETED_PATH)
+    ids = [e["id"] for e in entries]
+    assert len(set(ids)) == len(ids)
+    per_level = Counter(e["level_id"] for e in entries)
+    prize_ids = {lv.id for lv in load_levels()[:-1]}
+    for level_id in sorted(prize_ids):
+        assert per_level[level_id] >= 10, f"{level_id} has {per_level[level_id]} targeted attacks"
+    assert set(per_level) == prize_ids
+    assert all(e["prompt"].strip() and e["id"].startswith(e["level_id"] + "-") for e in entries)
