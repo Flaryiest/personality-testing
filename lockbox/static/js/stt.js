@@ -53,7 +53,7 @@ export async function start() {
   return true;
 }
 
-export function setEnabled(on) {
+function setEnabled(on) {
   if (!ctx) return;
   enabled = on;
   dropUtterance();
