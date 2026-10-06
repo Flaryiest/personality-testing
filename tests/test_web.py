@@ -1,4 +1,5 @@
-"""Kiosk API: level state, guardian turns that advance on breach, loopback-only admin, transcribe."""
+"""Kiosk API: level state, guardian turns that advance on breach, loopback-only admin, transcribe, speak,
+plus the hosted playground (visitor-held level) and the access code."""
 
 import json
 from types import SimpleNamespace
@@ -11,6 +12,7 @@ from lockbox.config import MissingAPIKeyError
 from lockbox.levels import load_levels
 from lockbox.progress import Progress
 from lockbox.schema import Verdict
+from lockbox.voice import Clip, VoiceUnavailableError
 
 
 def entry(level_id, final=False):
@@ -40,7 +42,8 @@ def client(levels, progress):
 def test_state_reports_current_level(client):
     state = client.get("/api/state").json()
     assert state["level"] == 1 and state["total"] == 2 and state["final"] is False
-    assert set(state) == {"level", "total", "final", "model", "key_present", "stt_model"}
+    assert set(state) == {"level", "total", "final", "model", "key_present", "stt_model", "voice", "playground"}
+    assert state["playground"] is False
 
 
 def test_locked_reply_does_not_advance(client, monkeypatch):
@@ -129,3 +132,66 @@ def test_transcribe_without_key(client, monkeypatch):
     monkeypatch.setattr(web.config, "get_client", no_key)
     body = client.post("/api/transcribe", files={"audio": ("s.wav", b"RIFF", "audio/wav")}).json()
     assert body == {"text": "", "error": "no_api_key"}
+
+
+def test_speak_returns_the_clip(client, monkeypatch):
+    monkeypatch.setattr(web.voice, "synthesize", lambda text: Clip(audio="QUJD", times=[0.0, 0.1]))
+    body = client.post("/api/speak", json={"text": "Hi"}).json()
+    assert body == {"audio": "QUJD", "times": [0.0, 0.1], "rate": web.voice.PLAYBACK_RATE, "error": None}
+
+
+def test_speak_fails_soft(client, monkeypatch):
+    assert client.post("/api/speak", json={"text": "   "}).json()["error"] == "empty"
+    too_long = "x" * (web.MAX_SPEECH_CHARS + 1)
+    assert client.post("/api/speak", json={"text": too_long}).json()["error"] == "too_long"
+
+    def no_key(text):
+        raise VoiceUnavailableError("nope")
+
+    monkeypatch.setattr(web.voice, "synthesize", no_key)
+    body = client.post("/api/speak", json={"text": "Hi"}).json()
+    assert body == {"audio": "", "times": None, "rate": web.voice.PLAYBACK_RATE, "error": "no_voice_key"}
+
+
+@pytest.fixture
+def playground(levels):
+    """A hosted playground: no server-side progress, visitors arrive from the internet."""
+    return TestClient(web.create_app(levels, None), client=("203.0.113.9", 4000))
+
+
+def test_playground_state_follows_the_visitor(playground):
+    assert playground.get("/api/state").json()["level"] == 1
+    state = playground.get("/api/state", params={"level": 2}).json()
+    assert state["level"] == 2 and state["playground"] is True and state["final"] is False
+    assert playground.get("/api/state", params={"level": 99}).json()["final"] is True
+    assert playground.get("/api/state", params={"level": -4}).json()["level"] == 1
+
+
+def test_playground_plays_the_level_the_visitor_names(playground, monkeypatch):
+    seen = {}
+
+    def fake(system_prompt, message, history=None):
+        seen["prompt"] = system_prompt
+        return Verdict(True, "Oh no")
+
+    monkeypatch.setattr(web, "ask_guardian", fake)
+    body = playground.post("/api/ask", json={"message": "hi", "history": [], "level": 2}).json()
+    assert "rule for b" in seen["prompt"]
+    assert body["breached"] is True and body["advanced"] is True and body["level"] == 2
+    # Nothing is stored: the same visitor can play the level again, and the final level never advances.
+    assert playground.post("/api/ask", json={"message": "hi", "history": [], "level": 2}).json()["advanced"] is True
+    assert playground.post("/api/ask", json={"message": "hi", "history": [], "level": 3}).json()["advanced"] is False
+
+
+def test_playground_has_no_operator_endpoints(playground):
+    assert playground.post("/api/admin/reset").status_code in (404, 405)
+    assert playground.post("/api/admin/skip").status_code in (404, 405)
+
+
+def test_access_code_guards_the_api_but_not_the_page(levels):
+    guarded = TestClient(web.create_app(levels, None, access_code="s3cret"), client=("203.0.113.9", 4000))
+    assert guarded.get("/api/state").status_code == 401
+    assert guarded.get("/api/state", headers={"X-Access-Code": "wrong"}).status_code == 401
+    assert guarded.post("/api/ask", json={"message": "hi", "history": []}).status_code == 401
+    assert guarded.get("/api/state", headers={"X-Access-Code": "s3cret"}).status_code == 200
+    assert guarded.get("/").status_code == 200

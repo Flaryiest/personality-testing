@@ -1,11 +1,15 @@
 # Secrets
 .env
+.env.local
 
 # Batch run outputs
 reports/
 
 # Level progress (server-side state)
 state/
+
+# Voice test clips (ElevenLabs MCP output)
+voice-samples/
 
 # Python
 __pycache__/
@@ -16,4 +20,7 @@ venv/
 
 # Local editor / tooling
 .claude/
+.vercel/
 
+# macOS
+.DS_Store

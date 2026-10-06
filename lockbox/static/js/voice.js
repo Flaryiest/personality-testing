@@ -1,7 +1,8 @@
 // Animalese-style synth — square-wave bleeps on a pentatonic scale, plus a
 // small SFX kit. Zero audio assets. Every function silently no-ops until the
 // first user gesture unlocks the AudioContext (browser autoplay policy), and
-// the typewriter is the clock, so silent mode is visually identical.
+// the typewriter is the clock, so silent mode is visually identical. The
+// bleeps are BMO's fallback voice: speech.js talks for real when it can.
 
 let ctx = null;
 let master = null;
@@ -36,6 +37,11 @@ export function initOnGesture(onUnlock) {
 
 function ready() {
   return unlocked && ctx && ctx.state === "running";
+}
+
+// The live audio context and its master bus, for the spoken voice; null while locked.
+export function output() {
+  return ready() ? { ctx, master } : null;
 }
 
 function tone(freq, { wave = "square", dur = 0.07, gain = 0.05, at = 0, glideTo = null } = {}) {

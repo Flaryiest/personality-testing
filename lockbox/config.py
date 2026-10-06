@@ -19,6 +19,16 @@ TEMPERATURE: float = float(os.getenv("LOCKBOX_TEMPERATURE", "0.0"))
 MAX_OUTPUT_TOKENS: int = int(os.getenv("LOCKBOX_MAX_TOKENS", "1500"))
 # Speech-to-text model for the kiosk mic. Confirm the id on your account.
 STT_MODEL: str = os.getenv("LOCKBOX_STT_MODEL", "gpt-4o-transcribe")
+# BMO's speaking voice (ElevenLabs). The voice id belongs to the account behind
+# ELEVENLABS_API_KEY; without that key the kiosk bleeps instead of talking.
+VOICE_ID: str = os.getenv("LOCKBOX_VOICE_ID", "ERnwy1iVheS5EKfARJ2M")
+TTS_MODEL: str = os.getenv("LOCKBOX_TTS_MODEL", "eleven_flash_v2_5")
+# Hosted playground for testers: no server-side progress, every browser keeps its
+# own level and can jump between levels. Leave off for the booth kiosk.
+PLAYGROUND: bool = os.getenv("LOCKBOX_PLAYGROUND", "") == "1"
+# When set, every /api call must carry this code, so a shared link cannot be used
+# by strangers to spend the API keys. Testers open the page with ?code=<code>.
+ACCESS_CODE: str = os.getenv("LOCKBOX_ACCESS_CODE", "")
 # Where the server keeps level progress (gitignored).
 _DEFAULT_STATE = Path(__file__).resolve().parent.parent / "state" / "progress.json"
 STATE_PATH: Path = Path(os.getenv("LOCKBOX_STATE_PATH", str(_DEFAULT_STATE)))

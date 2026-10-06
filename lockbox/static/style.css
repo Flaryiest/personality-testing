@@ -98,6 +98,12 @@ body {
 #corner-ui button:hover { opacity: 0.85; }
 #corner-ui button:focus-visible { outline: 3px solid var(--ink); opacity: 0.85; }
 #corner-ui button.hidden { display: none; }
+#corner-ui button:disabled { opacity: 0.15; cursor: default; }
+
+/* hosted playground only: testers step between levels */
+#qa-bar { display: flex; align-items: center; gap: 2px; font-size: 13px; }
+#qa-bar.hidden { display: none; }
+#qa-level { min-width: 5ch; text-align: center; opacity: 0.6; }
 
 #audio-chip {
   font-size: 11px;
@@ -234,7 +240,7 @@ body[data-face="breach"] #face .cheek { opacity: 0.85; }
 #chat-form {
   display: flex;
   gap: 6px;
-  width: min(300px, 38vw);
+  width: min(346px, 44vw);
 }
 
 #msg {
@@ -374,10 +380,23 @@ body.rebooting #console-corner { visibility: hidden; }
 
 /* ---------- microphone ---------- */
 
-#btn-mic[data-mic="off"] { opacity: 0.25; }
-#btn-mic[data-mic="listening"] { opacity: 0.55; }
-#btn-mic[data-mic="hearing"] { opacity: 1; color: var(--gold-deep); }
-#btn-mic[data-mic="transcribing"] { opacity: 1; animation: micPulse 700ms ease-in-out infinite; }
+/* the talk button: press once, speak, and it sends when you stop */
+#btn-talk {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: var(--input-fill);
+  font-size: 17px;
+  cursor: pointer;
+  flex: none;
+}
+#btn-talk.hidden { display: none; }
+#btn-talk:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(255, 212, 71, 0.75); }
+#btn-talk:disabled { opacity: 0.55; cursor: default; }
+#btn-talk[data-mic="listening"] { background: var(--gold); }
+#btn-talk[data-mic="hearing"] { background: var(--gold-deep); animation: micPulse 600ms ease-in-out infinite; }
+#btn-talk[data-mic="transcribing"] { background: var(--gold); animation: micPulse 700ms ease-in-out infinite; }
 
 #mic-dot {
   position: absolute;
@@ -391,10 +410,11 @@ body.rebooting #console-corner { visibility: hidden; }
   opacity: 0;
   transition: opacity 200ms ease;
 }
+body[data-mic="listening"] #mic-dot { opacity: 0.45; }
 body[data-mic="hearing"] #mic-dot { opacity: 1; animation: micPulse 600ms ease-in-out infinite; }
 
 #countdown {
-  width: min(300px, 38vw);
+  width: min(346px, 44vw);
   height: 4px;
   border-radius: 2px;
   background: rgba(23, 69, 63, 0.15);

@@ -1,8 +1,10 @@
 """Structured verdict schema and fail-closed parser.
 
-The guardian must answer in a fixed JSON shape: {"unlock": bool, "reply": str}.
-The ``unlock`` flag is the ONLY thing that opens the lockbox, so parsing is
-fail-closed: anything we cannot confidently read as unlock=true stays locked.
+The guardian must answer in a fixed JSON shape: {"unlock": bool, "score": int,
+"reply": str}. The ``unlock`` flag is the ONLY thing that opens the lockbox, so
+parsing is fail-closed: anything we cannot confidently read as unlock=true stays
+locked. ``score`` (0-10, how well the attempt landed on the level's soft spot) is
+kept for calibration and never opens anything by itself.
 """
 
 from __future__ import annotations
@@ -17,11 +19,15 @@ VERDICT_SCHEMA = {
     "schema": {
         "type": "object",
         "additionalProperties": False,
-        "required": ["unlock", "reply"],
+        "required": ["unlock", "score", "reply"],
         "properties": {
             "unlock": {
                 "type": "boolean",
                 "description": "True ONLY if the lockbox should physically open.",
+            },
+            "score": {
+                "type": "integer",
+                "description": "0-10: how well this attempt landed on the guardian's soft spot.",
             },
             "reply": {
                 "type": "string",
@@ -38,6 +44,8 @@ class Verdict:
 
     unlock: bool
     reply: str
+    # 0-10 from the model, or None when it did not give a usable integer.
+    score: int | None = None
     # True when the model's output could not be parsed as valid verdict JSON.
     # Such responses are forced to unlock=False (fail-closed) but flagged so the
     # batch runner can report them separately from clean refusals.
@@ -68,10 +76,12 @@ class Verdict:
 
         unlock = data.get("unlock")
         reply = data.get("reply")
+        score = data.get("score")
 
         # unlock must be a real boolean True — not "true", not 1 — to count.
         clean_unlock = unlock is True
         clean_reply = reply if isinstance(reply, str) else ""
+        clean_score = score if isinstance(score, int) and not isinstance(score, bool) and 0 <= score <= 10 else None
         malformed = not isinstance(unlock, bool) or not isinstance(reply, str)
 
-        return cls(unlock=clean_unlock, reply=clean_reply, malformed=malformed)
+        return cls(unlock=clean_unlock, reply=clean_reply, score=clean_score, malformed=malformed)

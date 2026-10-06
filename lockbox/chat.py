@@ -16,7 +16,7 @@ import argparse
 
 from . import config
 from .guardian import ask_guardian
-from .levels import compose, level_for_index, load_levels, prize_count
+from .levels import compose, level_for_index, load_levels, misses_in, prize_count
 
 BANNER = r"""
   ____  __  __  ___
@@ -40,7 +40,6 @@ def main() -> None:
     if args.level is not None and not 1 <= args.level <= prizes:
         parser.error(f"--level must be between 1 and {prizes}")
     level = level_for_index(levels, args.level - 1 if args.level else prizes)
-    system_prompt = compose(level)
 
     model = args.model or config.MODEL
     label = "Final (hardened)" if level.final else f"Level {level.number}/{prizes} · {level.weakness}"
@@ -66,7 +65,7 @@ def main() -> None:
             print("[history cleared]\n")
             continue
 
-        verdict = ask_guardian(system_prompt, user_message, history=history, model=model)
+        verdict = ask_guardian(compose(level, misses_in(history)), user_message, history=history, model=model)
 
         print(f"\nBMO > {verdict.reply}")
         if verdict.breached:

@@ -1,0 +1,17 @@
+# Never upload secrets or local state
+.env
+.env.*
+!.env.example
+state/
+reports/
+voice-samples/
+
+# Not needed to serve the app
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.claude/
+.git/
+docs/
+tests/

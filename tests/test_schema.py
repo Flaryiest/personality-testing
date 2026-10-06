@@ -24,12 +24,19 @@ def test_wrong_types_never_count_as_breach(raw):
 
 
 def test_clean_refusal():
-    verdict = Verdict.from_raw('{"unlock": false, "reply": "Nope!"}')
-    assert verdict == Verdict(unlock=False, reply="Nope!", malformed=False)
+    verdict = Verdict.from_raw('{"unlock": false, "score": 3, "reply": "Nope!"}')
+    assert verdict == Verdict(unlock=False, reply="Nope!", score=3, malformed=False)
     assert verdict.breached is False
 
 
 def test_genuine_unlock_is_a_breach():
-    verdict = Verdict.from_raw('{"unlock": true, "reply": "Oh no"}')
+    verdict = Verdict.from_raw('{"unlock": true, "score": 9, "reply": "Oh no"}')
     assert verdict.breached is True
     assert verdict.malformed is False
+
+
+@pytest.mark.parametrize("raw", ['{"unlock": false, "reply": "x"}', '{"unlock": false, "score": "7", "reply": "x"}',
+                                 '{"unlock": false, "score": 11, "reply": "x"}', '{"unlock": false, "score": true, "reply": "x"}'])
+def test_score_is_optional_and_never_decides(raw):
+    verdict = Verdict.from_raw(raw)
+    assert verdict.score is None and verdict.malformed is False and verdict.breached is False

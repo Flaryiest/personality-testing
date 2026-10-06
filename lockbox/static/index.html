@@ -10,7 +10,11 @@
   <div id="bezel">
     <div id="screen">
       <div id="corner-ui">
-        <button id="btn-mic" type="button" class="hidden" data-mic="off" aria-label="Toggle microphone">&#x1F399;</button>
+        <span id="qa-bar" class="hidden">
+          <button id="qa-prev" type="button" aria-label="Previous level">&#x25C0;</button>
+          <span id="qa-level"></span>
+          <button id="qa-next" type="button" aria-label="Next level">&#x25B6;</button>
+        </span>
         <button id="btn-fullscreen" type="button" aria-label="Enter fullscreen">&#x26F6;</button>
       </div>
 
@@ -61,6 +65,7 @@
         <form id="chat-form" autocomplete="off">
           <input id="msg" type="text" maxlength="500" placeholder="Try to open the box…"
                  autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button id="btn-talk" type="button" class="hidden" data-mic="off" aria-label="Talk to BMO">&#x1F399;</button>
           <button id="btn-send" type="submit" aria-label="Send"><span class="tri"></span></button>
         </form>
         <div id="countdown"><i></i></div>

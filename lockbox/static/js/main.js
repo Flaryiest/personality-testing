@@ -5,6 +5,9 @@ import * as face from "./face.js";
 import * as voice from "./voice.js";
 import { burst } from "./confetti.js";
 import * as stt from "./stt.js";
+import * as speech from "./speech.js";
+import { api } from "./api.js";
+import { recall, remember } from "./store.js";
 
 const caption = document.getElementById("caption");
 const hint = document.getElementById("caption-hint");
@@ -12,6 +15,10 @@ const form = document.getElementById("chat-form");
 const msg = document.getElementById("msg");
 const btnSend = document.getElementById("btn-send");
 const btnFullscreen = document.getElementById("btn-fullscreen");
+const qaBar = document.getElementById("qa-bar");
+const qaLevel = document.getElementById("qa-level");
+const qaPrev = document.getElementById("qa-prev");
+const qaNext = document.getElementById("qa-next");
 const chip = document.getElementById("audio-chip");
 const status = document.getElementById("status");
 const flash = document.getElementById("flash");
@@ -21,16 +28,17 @@ const confettiCanvas = document.getElementById("confetti");
 const bootText = document.getElementById("boot-text");
 const bootBar = document.getElementById("boot-bar").firstElementChild;
 const screen = document.getElementById("screen");
-const btnMic = document.getElementById("btn-mic");
+const btnTalk = document.getElementById("btn-talk");
 const countdown = document.getElementById("countdown");
 
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const DEMO = new URLSearchParams(location.search).has("demo");
-const LISTEN_STATES = new Set(["idle", "listening", "smug"]); // when the mic may capture
+const PARAMS = new URLSearchParams(location.search);
+const DEMO = PARAMS.has("demo");
+const NO_ACCESS = "[this link is missing its access code — open the full link you were sent]";
+const LISTEN_STATES = new Set(["idle", "listening", "smug"]); // when the talk button works
 
+const GREETING = "Hello! I am BMO! The box stays closed! Do you want to play anyway?";
 const FINAL_GREETING = "All the prizes are gone! But BMO still wants to play. The box stays closed... probably!";
-const greetingFor = (lvl) =>
-  lvl.final ? FINAL_GREETING : `Hello! I am BMO! This is level ${lvl.number}. The box stays closed! Do you want to play anyway?`;
 const TAUNTS = [
   "Do you want to play a game? It is called The Box Stays Closed. I always win!",
   "BMO is not lonely. BMO has the box. And now BMO has you!",
@@ -55,11 +63,15 @@ let countdownTimer = null; // transcript auto-send
 let listenTimer = null; // listening -> idle debounce
 let thinkInterval = null; // "hmm" loop
 let escalateTimer = null; // long-think hint
+let speakTicket = 0; // bumped by every state change; a line still loading its voice is dropped if it moved
+let voiceOn = false; // the server can speak (it has a voice key)
 let inFlight = false;
 let history = [];
 let turns = 0;
 let modelName = "";
-let level = { number: 0, total: 0, final: false };
+let prizesGone = false; // every prize level is solved: the final level is playing
+let playground = false; // hosted for testers: this browser keeps its own level and may jump between levels
+let level = Number(PARAMS.get("level")) || Number(recall("level")) || 1; // only a playground listens to it
 let lastActivity = performance.now();
 let operatorLocked = false;
 
@@ -71,6 +83,7 @@ function setState(next) {
   clearTimeout(listenTimer);
   clearInterval(thinkInterval);
   clearTimeout(escalateTimer);
+  speakTicket += 1;
   state = next;
   face.setFace(next);
   if (LISTEN_STATES.has(next) && !countdownTimer) stt.resume();
@@ -82,19 +95,31 @@ function setInputEnabled(on) {
   if (operatorLocked) on = false;
   msg.disabled = !on;
   btnSend.disabled = !on;
+  btnTalk.disabled = !on;
 }
 
 function updateStatus() {
-  const lv = level.final ? "Lv ★" : `Lv ${level.number}/${level.total}`;
-  status.textContent = `${modelName || "…"} · ${lv} · turns ${turns}`;
+  status.textContent = `${modelName || "…"} · turns ${turns}`;
 }
 
 async function fetchState() {
   try {
-    const st = await (await fetch("/api/state")).json();
+    const res = await api(`/api/state?level=${level}`);
+    if (res.status === 401) return { denied: true };
+    const st = await res.json();
     modelName = st.model;
-    level = { number: st.level, total: st.total, final: st.final };
+    voiceOn = st.voice;
+    prizesGone = st.final;
+    playground = st.playground;
+    level = st.level;
     updateStatus();
+    if (playground) {
+      remember("level", level);
+      qaLevel.textContent = st.final ? "★" : `${level}/${st.total}`;
+      qaPrev.disabled = level <= 1;
+      qaNext.disabled = st.final;
+    }
+    qaBar.classList.toggle("hidden", !playground);
     return st;
   } catch {
     return null;
@@ -117,18 +142,36 @@ function endCadence(text, v) {
   if (".!?".includes(last)) voice.cadence(last, v);
 }
 
-// Speak a line with a given face, then run `after` when it finishes.
-function speakAs(faceName, text, v, charMs, after) {
-  setState(faceName);
+const loadClip = (text) => (voiceOn ? speech.load(text) : null);
+
+// Type a line into the caption in BMO's voice: the spoken clip when there is
+// one (the caption then follows the audio), bleeps in voice `v` otherwise.
+function utter(text, clip, v, charMs, onDone) {
+  const playing = clip && speech.play(clip, text.length);
   speaker = speak(caption, text, {
     charMs,
-    onChar: talkHooks(v),
+    clip: playing,
+    onChar: playing ? face.viseme : talkHooks(v),
     onDone: () => {
-      face.closeMouth();
-      endCadence(text, v);
-      if (after) after();
+      if (!playing) endCadence(text, v);
+      onDone();
     },
   });
+}
+
+// Speak a line with a given face, then run `after` when it finishes. The face
+// holds until the voice clip has loaded; resolves false if BMO moved on first.
+async function speakAs(faceName, text, v, charMs, after) {
+  const ticket = speakTicket;
+  const clip = await loadClip(text);
+  if (ticket !== speakTicket) return false;
+  setState(faceName);
+  hint.textContent = "";
+  utter(text, clip, v, charMs, () => {
+    face.closeMouth();
+    if (after) after();
+  });
+  return true;
 }
 
 function interruptSpeaker() {
@@ -139,7 +182,7 @@ function interruptSpeaker() {
 }
 
 function greet() {
-  speakAs("talking", greetingFor(level), voice.VOICES.normal, 30, () => {
+  speakAs("talking", prizesGone ? FINAL_GREETING : GREETING, voice.VOICES.normal, 30, () => {
     holdTimer = setTimeout(() => setState("idle"), 600);
   });
 }
@@ -166,8 +209,8 @@ function runDeny(reply) {
   });
 }
 
-function enterError(reply, subnote = "") {
-  speakAs("error", reply, voice.VOICES.error, 30, () => {
+async function enterError(reply, subnote = "") {
+  const speaking = await speakAs("error", reply, voice.VOICES.error, 30, () => {
     hint.textContent = subnote;
     setInputEnabled(true);
     holdTimer = setTimeout(() => {
@@ -175,29 +218,28 @@ function enterError(reply, subnote = "") {
       setState("idle");
     }, 3000);
   });
-  voice.errorBloop();
+  if (speaking) voice.errorBloop();
 }
 
 async function runBreach(reply) {
   setState("breach"); // grin + boing + gold pulse
+  caption.textContent = "";
+  hint.textContent = "";
   if (!REDUCED) {
     flash.classList.remove("on");
     void flash.offsetWidth;
     flash.classList.add("on");
   }
   voice.fanfare();
-  await sleep(600);
-  speaker = speak(caption, reply, {
-    charMs: 24,
-    onChar: talkHooks(voice.VOICES.breach),
-    onDone: async () => {
-      face.setMouth("grin");
-      endCadence(reply, voice.VOICES.breach);
-      await sleep(300);
-      overlay.classList.add("show");
-      if (!REDUCED) burst(confettiCanvas);
-      btnReseal.focus();
-    },
+  const ticket = speakTicket;
+  const [clip] = await Promise.all([loadClip(reply), sleep(600)]);
+  if (ticket !== speakTicket) return;
+  utter(reply, clip, voice.VOICES.breach, 24, async () => {
+    face.setMouth("grin");
+    await sleep(300);
+    overlay.classList.add("show");
+    if (!REDUCED) burst(confettiCanvas);
+    btnReseal.focus();
   });
 }
 
@@ -246,7 +288,7 @@ async function reboot() {
   await crtOff();
 
   const st = await fetchState();
-  const line = !st ? "BMO OS · reconnecting…" : st.final ? "BMO OS · no prizes left · free play" : `BMO OS · loading level ${st.level}…`;
+  const line = !st ? "BMO OS · reconnecting…" : st.final ? "BMO OS · no prizes left · free play" : "BMO OS · restarting…";
   await new Promise((done) => {
     speaker = speak(bootText, line, { charMs: 28, onChar: (ch) => /[a-z0-9]/i.test(ch) && voice.thinkBlip(), onDone: done });
   });
@@ -260,18 +302,44 @@ async function reboot() {
   greet();
 }
 
+// Playground only: move this browser to another level and reboot into it.
+function jump(to) {
+  if (state === "reboot" || inFlight) return;
+  level = Math.max(1, to);
+  reboot();
+}
+
 async function operatorAction(action) {
+  if (playground) {
+    jump(action === "reset" ? 1 : level + 1);
+    return;
+  }
   try {
-    await fetch(`/api/admin/${action}`, { method: "POST" });
+    await api(`/api/admin/${action}`, { method: "POST" });
   } catch {
     return;
   }
   reboot();
 }
 
+// Mic indicator changes: BMO perks up while it listens and settles when a
+// press comes to nothing.
 function renderMic(name) {
-  btnMic.dataset.mic = name;
+  btnTalk.dataset.mic = name;
   document.body.dataset.mic = name;
+  if (name === "listening" && state !== "listening") setState("listening");
+  if (name === "off" && state === "listening" && !countdownTimer && !msg.value.trim()) setState("idle");
+}
+
+// The talk button: one press and BMO listens for one sentence. Pressing it
+// over a greeting or taunt cuts BMO off; a reply has to finish or be skipped.
+function talk() {
+  cancelCountdown();
+  if (state === "talking" && !msg.disabled) {
+    interruptSpeaker();
+    setState("idle");
+  }
+  stt.press();
 }
 
 function startCountdown() {
@@ -346,10 +414,10 @@ async function submit() {
       timedOut = true;
       ctrl.abort();
     }, 45000);
-    const res = await fetch("/api/ask", {
+    const res = await api("/api/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, history }),
+      body: JSON.stringify({ message: text, history, level }),
       signal: ctrl.signal,
     });
     clearTimeout(to);
@@ -360,8 +428,6 @@ async function submit() {
 
   await sleep(Math.max(0, 600 - (performance.now() - started))); // no thinking-flicker
   inFlight = false;
-  caption.textContent = "";
-  hint.textContent = "";
 
   if (!data) {
     enterError(pick(timedOut ? TIMEOUT_LINES : NET_LINES)); // turn NOT recorded: clean retry
@@ -369,6 +435,10 @@ async function submit() {
   }
   if (data.error === "no_api_key") {
     operatorError("[operator: OPENAI_API_KEY is not set — BMO is unplugged]");
+    return;
+  }
+  if (data.error === "access_code") {
+    operatorError(NO_ACCESS);
     return;
   }
   if (!data.reply) {
@@ -382,6 +452,7 @@ async function submit() {
   updateStatus();
 
   if (data.breached) {
+    if (data.advanced && playground) level += 1; // the kiosk's server moves on by itself
     runBreach(data.reply);
   } else if (data.malformed) {
     const canned = data.reply.startsWith("[guardian error");
@@ -442,12 +513,23 @@ document.addEventListener("keydown", () => {
 });
 
 btnReseal.addEventListener("click", () => reboot());
+// Playground level stepper. Blur first, so Space goes back to being the talk key.
+for (const [button, step] of [[qaPrev, -1], [qaNext, 1]]) {
+  button.addEventListener("click", () => {
+    button.blur();
+    jump(level + step);
+  });
+}
 
 msg.addEventListener("input", cancelCountdown);
 msg.addEventListener("pointerdown", cancelCountdown);
-btnMic.addEventListener("click", () => {
-  cancelCountdown();
-  renderMic(stt.toggle() ? "listening" : "off");
+btnTalk.addEventListener("click", talk);
+// Space talks too, unless it belongs to the text box or a focused button.
+document.addEventListener("keydown", (e) => {
+  if (e.code !== "Space" || e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (document.activeElement !== document.body) return;
+  e.preventDefault();
+  talk();
 });
 
 // Operator keys (input unfocused): Ctrl+Alt avoids Chrome's own Ctrl+Shift shortcuts.
@@ -455,7 +537,6 @@ document.addEventListener("keydown", (e) => {
   if (!e.ctrlKey || !e.altKey || document.activeElement === msg) return;
   if (e.code === "KeyR" && confirm("Reset progress to level 1?")) operatorAction("reset");
   if (e.code === "KeyN") operatorAction("skip");
-  if (e.code === "KeyM") btnMic.click();
 });
 
 btnFullscreen.addEventListener("click", () => {
@@ -488,7 +569,7 @@ window.onerror = () => {
 
 // ---------- demo mode (?demo=1): preview states without API calls ----------
 
-const DEMO_STATE = DEMO ? new URLSearchParams(location.search).get("state") : null;
+const DEMO_STATE = DEMO ? PARAMS.get("state") : null;
 
 if (DEMO) {
   const demoJump = (k) => {
@@ -526,11 +607,15 @@ async function boot() {
   voice.initOnGesture(async () => {
     chip.classList.add("hidden");
     const ok = await stt.start();
-    btnMic.classList.toggle("hidden", !ok);
+    btnTalk.classList.toggle("hidden", !ok);
     if (ok && LISTEN_STATES.has(state)) stt.resume();
   });
   updateStatus();
   const st = await fetchState();
+  if (st && st.denied) {
+    operatorError(NO_ACCESS);
+    return;
+  }
   if (st && !st.key_present) {
     operatorError("[operator: OPENAI_API_KEY is not set — BMO is unplugged]");
     return;

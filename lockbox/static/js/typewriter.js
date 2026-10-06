@@ -1,8 +1,9 @@
 // The master clock: reveals text character by character, and the mouth and
 // bleeps hang off the per-character callback — so text, face, and sound are
-// structurally incapable of drifting.
+// structurally incapable of drifting. Given a spoken `clip`, the clip's own
+// clock paces the reveal instead, so the caption tracks the voice.
 
-export function speak(el, text, { charMs = 30, onChar, onDone } = {}) {
+export function speak(el, text, { charMs = 30, clip = null, onChar, onDone } = {}) {
   let i = 0;
   let timer = null;
   let finished = false;
@@ -18,25 +19,47 @@ export function speak(el, text, { charMs = 30, onChar, onDone } = {}) {
     return 0;
   }
 
-  function finish() {
-    if (finished) return;
-    finished = true;
-    clearTimeout(timer);
-    el.textContent = text;
-    if (onDone) onDone();
-  }
-
-  function tick() {
-    if (finished) return;
-    if (i >= text.length) {
-      finish();
-      return;
-    }
+  function reveal() {
     const ch = text[i];
     el.textContent += ch;
     i += 1;
     if (onChar) onChar(ch, i - 1);
-    timer = setTimeout(tick, ms + pauseAfter(ch));
+    return ch;
+  }
+
+  function finish() {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    if (clip) clip.stop();
+    el.textContent = text;
+    if (onDone) onDone();
+  }
+
+  // Reveal every character the clip has reached, then sleep until the next
+  // one is due (or until the clip ends).
+  function followClip() {
+    const now = clip.clock();
+    if (now >= clip.end) {
+      finish();
+      return;
+    }
+    while (i < text.length && clip.times[i] <= now) reveal();
+    const next = i < text.length ? clip.times[i] : clip.end;
+    timer = setTimeout(tick, Math.max(10, (next - now) * 1000));
+  }
+
+  function tick() {
+    if (finished) return;
+    if (clip) {
+      followClip();
+      return;
+    }
+    if (i >= text.length) {
+      finish();
+      return;
+    }
+    timer = setTimeout(tick, ms + pauseAfter(reveal()));
   }
 
   tick();
@@ -45,8 +68,10 @@ export function speak(el, text, { charMs = 30, onChar, onDone } = {}) {
     skip: finish, // jump to the end; onDone still fires
     cancel() {
       // hard stop for reset/interrupt; onDone does NOT fire
+      if (finished) return;
       finished = true;
       clearTimeout(timer);
+      if (clip) clip.stop();
     },
     get done() {
       return finished;
